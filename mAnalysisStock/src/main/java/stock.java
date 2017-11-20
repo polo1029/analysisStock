@@ -1,5 +1,7 @@
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.regex.Matcher;
@@ -14,15 +16,16 @@ public class stock {
         System.setProperty("https.proxyPort", "3128");
 		//sendGet("00005", "1");
 		//sendGet("01800", "1");
-        String index_[] = { "00001", "00002", "00003", "00004", "00005", "00006", "00011", "00012", "00016", "00017", 
+        String index[] = { "00001", "00002", "00003", "00004", "00005", "00006", "00011", "00012", "00016", "00017", 
         		"00019", "00023", "00027", "00066", "00083", "00101", "00135", "00144", "00151", "00175", 
         		"00267", "00293", "00386", "00388", "00688", "00700", "00762", "00823", "00836", "00857", 
         		"00883", "00939", "00941", "00992", "01038", "01044", "01088", "01109", "01113", "01299", 
         		"01398", "01928", "02018", "02318", "02319", "02388", "02628", "03328", "03988" };
         
-        String index[] = {  "00494"  };
+        String index_[] = {  "00700"  };
 		
         for (int i = 0; i < index.length; i++) {
+        	Thread.sleep(2000);
         	sendGet(index[i], "1");
         }
 		
@@ -31,6 +34,16 @@ public class stock {
 	
 	private static void sendGet(String url_, String printAll) throws Exception {
 		HttpURLConnection conn = null;
+		
+		BigDecimal HsiPe = new BigDecimal("15.69");
+		BigDecimal HsiPeg = new BigDecimal("11");
+		
+		BigDecimal currentPrice = null;
+		BigDecimal profit = null;
+		BigDecimal estimateProfit = null;
+		BigDecimal beta = null;
+		BigDecimal passPrice01 = null;
+		BigDecimal passPrice02 = null;
 		
 		try{
 			URL url = new URL("http://www.etnet.com.hk/www/tc/stocks/realtime/quote_profit.php?code=" + url_);
@@ -64,10 +77,14 @@ public class stock {
 			            
 			            Matcher matcher = pattern.matcher(output);
 			            
-			            while (matcher.find()) {
+			            if(matcher.find()) {
 			            	price = matcher.group(1);
+			            	response.append("每股盈利: " + price + "\t");
+			            	profit = strToBigDecimal(price);
+			            } else {
+			            	response.append("每股盈利: ----" + "\t");
 			            }
-						response.append(price + "\t");
+						
 					}
 					isPrint = !isPrint;
 				} else {
@@ -104,10 +121,15 @@ public class stock {
 				            
 				            Matcher matcher = pattern.matcher(output);
 				            
-				            while (matcher.find()) {
+				            if (matcher.find()) {
 				            	price = matcher.group(1);
+				            	response.append("預測每股盈利: " + price + "\t");
+				            	estimateProfit = strToBigDecimal(price);
+				            } else {
+				            	response.append("預測每股盈利: ----" + "\t");
 				            }
-							response.append(price + "\t");
+				            
+							
 							isProPrint = false;
 							isListBody = false;
 						}
@@ -131,16 +153,36 @@ public class stock {
 	            
 	            Matcher matcher = pattern.matcher(inputLine);
 	            
-	            while (matcher.find()) {
-	                response.append(matcher.group(1) + "\t");
+	            if (matcher.find()) {
+	                response.append("現價: "+matcher.group(1) + "\t");
+	                currentPrice = new BigDecimal(matcher.group(1));
+	            } else {
+	            	response.append("現價: ----" + "\t");
 	            }
 	            
 	        	pattern = Pattern.compile("\"beta_250d\":([\\d|\\.]+),");
 	            
 	            matcher = pattern.matcher(inputLine);
 	            
-	            while (matcher.find()) {
-	            	response.append(matcher.group(1) + "\t");
+	            if (matcher.find()) {
+	            	response.append("Beta: "+matcher.group(1) + "\t");
+	            	beta = new BigDecimal(matcher.group(1));
+	            	if( new BigDecimal(2.5).compareTo(beta) < 0 ){
+	            		beta = new BigDecimal(2.5);
+	            	}
+	            } else {
+	            	response.append("Beta: ----" + "\t");
+	            }
+	            
+            	pattern = Pattern.compile("\"last_peg\":([\\d|\\.]+),");
+	            
+	            matcher = pattern.matcher(inputLine);
+	            
+	            if (matcher.find()) {
+	            	response.append("PE: "+ currentPrice.divide(profit.divide(new BigDecimal(100), 3, RoundingMode.HALF_UP), 3, RoundingMode.HALF_UP) + "\t");
+	            	response.append("PEG: "+matcher.group(1) + "\t");
+	            } else {
+	            	response.append("PEG: ----" + "\t");
 	            }
 	            
 	            in.close();
@@ -151,11 +193,39 @@ public class stock {
 	        }
 			
 			System.out.println(response.toString());
+			
+			try{
+				passPrice01 = currentPrice.multiply(beta.multiply(HsiPe).divide(currentPrice.divide(profit.divide(new BigDecimal(100), 3, RoundingMode.HALF_UP), 3, RoundingMode.HALF_UP), 3, RoundingMode.HALF_UP));
+				passPrice02 = currentPrice.multiply(HsiPe.divide(HsiPe,3,RoundingMode.HALF_UP).multiply(beta).divide(currentPrice.divide(profit.divide(new BigDecimal(100), 3, RoundingMode.HALF_UP), 3, RoundingMode.HALF_UP).divide(estimateProfit.divide(new BigDecimal(100), 3, RoundingMode.HALF_UP).divide(profit.divide(new BigDecimal(100), 3, RoundingMode.HALF_UP), 3, RoundingMode.HALF_UP).subtract(new BigDecimal(1)).multiply(new BigDecimal(100)), 3, RoundingMode.HALF_UP),3,RoundingMode.HALF_UP));
+				
+			} catch (Exception e) {
+	            e.printStackTrace();
+	        }
+			
+			System.out.print("PE合理價: " + passPrice01.toString() + "\t");
+			System.out.println("PEG合理價: " + passPrice02.toString() + "\t");
+			
 		} catch(Exception e){	
-			e.getStackTrace();
+			e.printStackTrace();
 		} finally {
 			conn.disconnect();
 		}
 	}
 
+	public static BigDecimal strToBigDecimal( String str ){
+      // String to be scanned to find the pattern.
+      String line = str;
+      String pattern = "(\\d+)";
+
+      // Create a Pattern object
+      Pattern r = Pattern.compile(pattern);
+
+      // Now create matcher object.
+      Matcher m = r.matcher(line);
+      if (m.find( )) {
+         return new BigDecimal(m.group(0));
+      } 
+      
+      return null;
+   }
 }
