@@ -16,13 +16,13 @@ public class stock {
         System.setProperty("https.proxyPort", "3128");
 		//sendGet("00005", "1");
 		//sendGet("01800", "1");
-        String index[] = { "00001", "00002", "00003", "00004", "00005", "00006", "00011", "00012", "00016", "00017", 
+        String index_[] = { "00001", "00002", "00003", "00004", "00005", "00006", "00011", "00012", "00016", "00017", 
         		"00019", "00023", "00027", "00066", "00083", "00101", "00135", "00144", "00151", "00175", 
         		"00267", "00293", "00386", "00388", "00688", "00700", "00762", "00823", "00836", "00857", 
         		"00883", "00939", "00941", "00992", "01038", "01044", "01088", "01109", "01113", "01299", 
         		"01398", "01928", "02018", "02318", "02319", "02388", "02628", "03328", "03988" };
         
-        String index_[] = {  "00700"  };
+        String index[] = {  "00016"  };
 		
         for (int i = 0; i < index.length; i++) {
         	Thread.sleep(2000);
@@ -154,10 +154,10 @@ public class stock {
 	            Matcher matcher = pattern.matcher(inputLine);
 	            
 	            if (matcher.find()) {
-	                response.append("現價: "+matcher.group(1) + "\t");
+	                //response.append("現價: "+matcher.group(1) + "\t");
 	                currentPrice = new BigDecimal(matcher.group(1));
 	            } else {
-	            	response.append("現價: ----" + "\t");
+	            	//response.append("現價: ----" + "\t");
 	            }
 	            
 	        	pattern = Pattern.compile("\"beta_250d\":([\\d|\\.]+),");
@@ -196,14 +196,31 @@ public class stock {
 			
 			try{
 				passPrice01 = currentPrice.multiply(beta.multiply(HsiPe).divide(currentPrice.divide(profit.divide(new BigDecimal(100), 3, RoundingMode.HALF_UP), 3, RoundingMode.HALF_UP), 3, RoundingMode.HALF_UP));
-				passPrice02 = currentPrice.multiply(HsiPe.divide(HsiPe,3,RoundingMode.HALF_UP).multiply(beta).divide(currentPrice.divide(profit.divide(new BigDecimal(100), 3, RoundingMode.HALF_UP), 3, RoundingMode.HALF_UP).divide(estimateProfit.divide(new BigDecimal(100), 3, RoundingMode.HALF_UP).divide(profit.divide(new BigDecimal(100), 3, RoundingMode.HALF_UP), 3, RoundingMode.HALF_UP).subtract(new BigDecimal(1)).multiply(new BigDecimal(100)), 3, RoundingMode.HALF_UP),3,RoundingMode.HALF_UP));
-				
-			} catch (Exception e) {
-	            e.printStackTrace();
+			} catch (ArithmeticException e) {
+				passPrice01 = BigDecimal.ZERO;
+	        } catch (Exception e) {
+	        	passPrice01 = null;
 	        }
 			
-			System.out.print("PE合理價: " + passPrice01.toString() + "\t");
-			System.out.println("PEG合理價: " + passPrice02.toString() + "\t");
+			try{
+				passPrice02 = currentPrice.multiply(HsiPe.divide(HsiPe,3,RoundingMode.HALF_UP).multiply(beta).divide(currentPrice.divide(profit.divide(new BigDecimal(100), 3, RoundingMode.HALF_UP), 3, RoundingMode.HALF_UP).divide(estimateProfit.divide(new BigDecimal(100), 3, RoundingMode.HALF_UP).divide(profit.divide(new BigDecimal(100), 3, RoundingMode.HALF_UP), 3, RoundingMode.HALF_UP).subtract(new BigDecimal(1)).multiply(new BigDecimal(100)), 3, RoundingMode.HALF_UP),3,RoundingMode.HALF_UP));
+			} catch (ArithmeticException e) {
+	            passPrice02 = BigDecimal.ZERO;
+	        } catch (Exception e) {
+	        	passPrice02 = null;
+	        }
+			
+			try{
+				
+				System.out.print("\t現價: " + (currentPrice == null ? "----" : currentPrice.toString()) + "\t");
+				
+				System.out.print("PE合理價: " + (passPrice01 == null ? "----" : passPrice01.toString()) + "\t");
+				
+				System.out.print("PEG合理價: " + (passPrice02 == null ? "----" : passPrice02.toString()) + "\t");
+				
+			} catch (NullPointerException e) {
+	            e.printStackTrace();
+	        }
 			
 		} catch(Exception e){	
 			e.printStackTrace();
@@ -214,7 +231,7 @@ public class stock {
 
 	public static BigDecimal strToBigDecimal( String str ){
       // String to be scanned to find the pattern.
-      String line = str;
+      String line = str.replace(",", "");
       String pattern = "(\\d+)";
 
       // Create a Pattern object
