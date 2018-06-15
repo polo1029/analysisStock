@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 
 import javax.net.ssl.HttpsURLConnection;
 
+
 public class stock {
 
 	public static void main(String[] args) throws Exception {
@@ -22,7 +23,7 @@ public class stock {
         		"00883", "00939", "00941", "00992", "01038", "01044", "01088", "01109", "01113", "01299", 
         		"01398", "01928", "02018", "02318", "02319", "02388", "02628", "03328", "03988" };
         
-        String index[] = {  "00016"  };
+        String index[] = {  "02318","00700"  };
 		
         for (int i = 0; i < index.length; i++) {
         	Thread.sleep(2000);
@@ -42,6 +43,8 @@ public class stock {
 		BigDecimal profit = null;
 		BigDecimal estimateProfit = null;
 		BigDecimal beta = null;
+		BigDecimal pe = null;
+		BigDecimal g = null;
 		BigDecimal passPrice01 = null;
 		BigDecimal passPrice02 = null;
 		
@@ -143,7 +146,8 @@ public class stock {
 				
 	            URL data = new URL("https://api.investtab.com/api/quote/"+url_+":HK/fundamentals");
 	            
-	            HttpsURLConnection con = (HttpsURLConnection) data.openConnection(); 
+	            //HttpsURLConnection con = (HttpsURLConnection) data.openConnection(); 
+	            HttpsURLConnection con = (HttpsURLConnection) data.openConnection();
 	            
 	            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
 	            
@@ -174,12 +178,19 @@ public class stock {
 	            	response.append("Beta: ----" + "\t");
 	            }
 	            
-            	pattern = Pattern.compile("\"last_peg\":([\\d|\\.]+),");
+	            try{
+	            	g = estimateProfit.divide(profit, 3, RoundingMode.HALF_UP).subtract(new BigDecimal(1));
+	            	pe = currentPrice.divide(profit.divide(new BigDecimal(100), 3, RoundingMode.HALF_UP), 3, RoundingMode.HALF_UP);
+	            	response.append("PE: "+ pe.toString() + "\t");
+	            } catch(Exception e){
+	            	e.printStackTrace();
+	            }
+	            
+	            pattern = Pattern.compile("\"last_peg\":([\\d|\\.]+),");
 	            
 	            matcher = pattern.matcher(inputLine);
 	            
 	            if (matcher.find()) {
-	            	response.append("PE: "+ currentPrice.divide(profit.divide(new BigDecimal(100), 3, RoundingMode.HALF_UP), 3, RoundingMode.HALF_UP) + "\t");
 	            	response.append("PEG: "+matcher.group(1) + "\t");
 	            } else {
 	            	response.append("PEG: ----" + "\t");
@@ -194,21 +205,22 @@ public class stock {
 			
 			System.out.println(response.toString());
 			
-			try{
-				passPrice01 = currentPrice.multiply(beta.multiply(HsiPe).divide(currentPrice.divide(profit.divide(new BigDecimal(100), 3, RoundingMode.HALF_UP), 3, RoundingMode.HALF_UP), 3, RoundingMode.HALF_UP));
+			try {
+				passPrice01 = currentPrice.multiply(beta.multiply(HsiPe).divide(pe, 3, RoundingMode.HALF_UP));
 			} catch (ArithmeticException e) {
 				passPrice01 = BigDecimal.ZERO;
-	        } catch (Exception e) {
-	        	passPrice01 = null;
-	        }
-			
-			try{
-				passPrice02 = currentPrice.multiply(HsiPe.divide(HsiPe,3,RoundingMode.HALF_UP).multiply(beta).divide(currentPrice.divide(profit.divide(new BigDecimal(100), 3, RoundingMode.HALF_UP), 3, RoundingMode.HALF_UP).divide(estimateProfit.divide(new BigDecimal(100), 3, RoundingMode.HALF_UP).divide(profit.divide(new BigDecimal(100), 3, RoundingMode.HALF_UP), 3, RoundingMode.HALF_UP).subtract(new BigDecimal(1)).multiply(new BigDecimal(100)), 3, RoundingMode.HALF_UP),3,RoundingMode.HALF_UP));
+			} catch (Exception e) {
+				passPrice01 = null;
+			}
+
+			try {
+				passPrice02 = currentPrice.multiply(HsiPeg.multiply(beta).divide(
+						pe.divide(g.multiply(new BigDecimal(100)), 3, RoundingMode.HALF_UP), 3, RoundingMode.HALF_UP));
 			} catch (ArithmeticException e) {
-	            passPrice02 = BigDecimal.ZERO;
-	        } catch (Exception e) {
-	        	passPrice02 = null;
-	        }
+				passPrice02 = BigDecimal.ZERO;
+			} catch (Exception e) {
+				passPrice02 = null;
+			}
 			
 			try{
 				
